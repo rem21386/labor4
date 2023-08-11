@@ -1,0 +1,212 @@
+#include <Arduino.h>
+#include <ESP32Servo.h>
+#include "driver/ledc.h"
+#include <stdint.h>
+
+// Enumeración para representar los estados del servo, rojo, verde y azul
+typedef enum estados {S, R, G, B} estados;
+estados estadoActual = S; // Estado actual, inicia en A
+estados estadoFuturo = S;
+
+const long interval = 500; // Intervalo de tiempo en milisegundos para los cambios de estado
+unsigned long previousMillis = 0; // Variable para almacenar el tiempo anterior
+
+//Canales de pmw
+#define pwmChannel 0 
+#define ledRChannel 1
+#define ledGChannel 2
+#define ledBChannel 3
+
+#define pinPWM 15 //Se usa el pin 15 para el servo
+
+//Frecuencia de los pmw para los leds
+#define freqPWM 5000 // Frecuencia en Hz
+
+//Resolución de 8 bits
+#define resolution 16
+
+//Pines de los leds
+#define pinLedR 19
+#define pinLedG 4
+#define pinLedB 2
+
+//Botones del servo en los pines 18 y 5
+#define pinButton1 18
+#define pinButton2 5
+
+//Botón para cambiar entre leds y el servo
+#define pinButton3 25
+
+//Botón para aumentar el brillo de las leds
+#define pinButton4 26
+
+//El servo empieza en un ángulo de 0
+volatile int angle = 0;
+
+//La led empieza opaca
+volatile int dutycycleR = 0;
+volatile int dutycycleG = 0;
+volatile int dutycycleB = 0;
+
+//Variable del servo
+Servo myservo;
+
+void configurarPWM(void);
+
+void setup() {
+    configurarPWM();     // Configura el PWM para el servo
+    pinMode(pinButton1, INPUT_PULLUP);  // Configura el pin del botón 1 como entrada con resistencia pull-up interna
+    pinMode(pinButton2, INPUT_PULLUP);  // Configura el pin del botón 2 como entrada con resistencia pull-up interna
+    pinMode(pinButton3, INPUT_PULLUP);  // Configura el pin del botón 3 como entrada con resistencia pull-up interna
+    pinMode(pinButton4, INPUT_PULLUP);  // Configura el pin del botón 4 como entrada con resistencia pull-up interna
+
+}
+
+void loop() {
+
+      //Condiciones de cambio de estado
+  switch (estadoActual) {
+    case S:
+      // Si el botón 3 se apacha, cambia al estado R; de lo contrario, permanece en el estado S
+      if (digitalRead(pinButton3) == LOW) {
+        estadoActual = R;
+        estadoFuturo = R;
+        delay(300);
+      } else {
+        estadoFuturo = S;
+      }
+      break;
+
+    case R:
+      // Si el botón 3 se apacha, cambia al estado G; de lo contrario, permanece en el estado R
+      if (digitalRead(pinButton3) == LOW) {
+        estadoActual = G;
+        estadoFuturo = G;
+        delay(300);
+      } else {
+        estadoFuturo = R;
+      }
+      break;
+
+    case G:
+      // Si el botón 3 se apacha, cambia al estado B; de lo contrario, permanece en el estado G
+      if (digitalRead(pinButton3) == LOW) {
+        estadoActual = B;
+        estadoFuturo = B;
+        delay(300);
+      } else {
+        estadoFuturo = G;
+      }
+      break;
+
+    case B:
+      // Si el botón 3 se apacha, cambia al estado S; de lo contrario, permanece en el estado B
+      if (digitalRead(pinButton3) == LOW) {
+        estadoActual = S;
+        estadoFuturo = S;
+        delay(300);
+      } else {
+        estadoFuturo = B;
+      }
+      break;
+  }
+
+    //Código en cada estado
+  switch (estadoActual) {
+    case S:
+
+    //Límite para que no siga bajando el ángulo después de 0
+    if (angle == 0){
+        if (digitalRead(pinButton1) == LOW) {  // Si se presiona el botón 1 y el ángulo es 0
+            angle++;  // Incrementa el ángulo en 1
+            delay(20); // Espera 20 ms para evitar rebotes en el botón
+        }
+    //Límite para que no siga subiendo el ángulo después de 180
+    } else if (angle == 180){
+        if (digitalRead(pinButton2) == LOW) {  // Si se presiona el botón 2 y el ángulo es 180
+            angle--;  // Decrementa el ángulo en 1
+            delay(20); // Espera 20 ms para evitar rebotes en el botón
+        }
+    
+    //Si no está en ninguno de los límites funcionamineto normal
+    } else {
+        if (digitalRead(pinButton1) == LOW) {  // Si se presiona el botón 1 y el ángulo no es 0 ni 180
+            angle++;  // Incrementa el ángulo en 1
+            delay(20); // Espera 20 ms para evitar rebotes en el botón
+        }
+        if (digitalRead(pinButton2) == LOW) {  // Si se presiona el botón 2 y el ángulo no es 0 ni 180
+            angle--;  // Decrementa el ángulo en 1
+            delay(20); // Espera 20 ms para evitar rebotes en el botón
+        }
+    }
+    
+    myservo.write(angle);  // Escribe el ángulo en el servo para que se mueva a la posición correspondiente
+    break;
+
+    case R:
+
+    if (dutycycleR == 255) {
+        dutycycleR = 0;
+    }
+    if (digitalRead(pinButton4) == LOW) {
+        dutycycleR++;
+        delay(10);
+    }
+
+    ledcWrite(ledRChannel, dutycycleR);
+    break;
+
+    case G:
+
+    if (dutycycleG == 255) {
+        dutycycleG = 0;
+    }
+    if (digitalRead(pinButton4) == LOW) {
+        dutycycleG++;
+        delay(10);
+    }
+
+    ledcWrite(ledGChannel, dutycycleG);
+    break;
+
+    case B:
+
+    if (dutycycleB == 255) {
+        dutycycleB = 0;
+    }
+    if (digitalRead(pinButton4) == LOW) {
+        dutycycleB++;
+        delay(10);
+    }
+
+    ledcWrite(ledBChannel, dutycycleB);
+    break;
+
+    }
+
+    // Gestión de la transición de estados y el intervalo de tiempo
+  unsigned long currentMillis = millis();
+  if (currentMillis - previousMillis >= interval) {
+    estadoActual = estadoFuturo;
+    previousMillis = currentMillis;
+  }
+  delay(1);
+
+}
+
+//Función de configuración del servo con pmw
+void configurarPWM(void) {
+    ledcSetup(pwmChannel, 50, resolution);  // Configura el canal PWM con frecuencia de 50 Hz y resolución de 8 bits
+    ledcAttachPin(pinPWM, pwmChannel);      // Asocia el pin del servo con el canal PWM configurado
+    myservo.attach(pinPWM);                 // Adjunta el servo al pin PWM configurado
+
+    // Paso 1: Configurar el módulo PWM
+    ledcSetup(ledRChannel, 5000, resolution);
+    ledcSetup(ledGChannel, 1000, resolution);
+    ledcSetup(ledBChannel, 500, resolution);
+
+    // Paso 2: seleccionar en que GPIO tendremos nuestra señal PWM
+    ledcAttachPin(pinLedR, ledRChannel);
+    ledcAttachPin(pinLedG, ledGChannel);
+    ledcAttachPin(pinLedB, ledBChannel);
+}
