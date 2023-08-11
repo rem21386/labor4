@@ -1,0 +1,63 @@
+#include <Arduino.h>
+#include <ESP32Servo.h>
+
+#define pwmChannel 0 //Canal cero de pmw
+#define pinPWM 15 //Se usa el pin 15 para el servo
+
+//Resolución de 8 bits
+#define resolution 8
+
+//Botones en los pines 18 y 5
+#define pinButton1 18
+#define pinButton2 5
+
+//El servo empieza en un ángulo de 0
+volatile int angle = 0;
+
+//Variable del servo
+Servo myservo;
+
+void configurarPWM(void);
+
+void setup() {
+    Serial.begin(9600);  // Inicializa la comunicación seria
+    configurarPWM();     // Configura el PWM para el servo
+    pinMode(pinButton1, INPUT_PULLUP);  // Configura el pin del botón 1 como entrada con resistencia pull-up interna
+    pinMode(pinButton2, INPUT_PULLUP);  // Configura el pin del botón 2 como entrada con resistencia pull-up interna
+}
+
+void loop() {
+    //Límite para que no siga bajando el ángulo después de 0
+    if (angle == 0){
+        if (digitalRead(pinButton1) == LOW) {  // Si se presiona el botón 1 y el ángulo es 0
+            angle++;  // Incrementa el ángulo en 1
+            delay(20); // Espera 20 ms para evitar rebotes en el botón
+        }
+    //Límite para que no siga subiendo el ángulo después de 180
+    } else if (angle == 180){
+        if (digitalRead(pinButton2) == LOW) {  // Si se presiona el botón 2 y el ángulo es 180
+            angle--;  // Decrementa el ángulo en 1
+            delay(20); // Espera 20 ms para evitar rebotes en el botón
+        }
+    
+    //Si no está en ninguno de los límites funcionamineto normal
+    } else {
+        if (digitalRead(pinButton1) == LOW) {  // Si se presiona el botón 1 y el ángulo no es 0 ni 180
+            angle++;  // Incrementa el ángulo en 1
+            delay(20); // Espera 20 ms para evitar rebotes en el botón
+        }
+        if (digitalRead(pinButton2) == LOW) {  // Si se presiona el botón 2 y el ángulo no es 0 ni 180
+            angle--;  // Decrementa el ángulo en 1
+            delay(20); // Espera 20 ms para evitar rebotes en el botón
+        }
+    }
+    
+    myservo.write(angle);  // Escribe el ángulo en el servo para que se mueva a la posición correspondiente
+}
+
+//Función de configuración del servo con pmw
+void configurarPWM(void) {
+    ledcSetup(pwmChannel, 50, resolution);  // Configura el canal PWM con frecuencia de 50 Hz y resolución de 8 bits
+    ledcAttachPin(pinPWM, pwmChannel);      // Asocia el pin del servo con el canal PWM configurado
+    myservo.attach(pinPWM);                 // Adjunta el servo al pin PWM configurado
+}
