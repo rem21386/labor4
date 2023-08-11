@@ -48,6 +48,10 @@ volatile int dutycycleR = 0;
 volatile int dutycycleG = 0;
 volatile int dutycycleB = 0;
 
+volatile int dutycycleRS = 0;
+volatile int dutycycleGS = 0;
+volatile int dutycycleBS = 0;
+
 //Variable del servo
 Servo myservo;
 
@@ -104,6 +108,9 @@ void loop() {
       if (digitalRead(pinButton3) == LOW) {
         estadoActual = S;
         estadoFuturo = S;
+        dutycycleRS = 0;
+        dutycycleGS = 0;
+        dutycycleBS = 0;
         delay(300);
       } else {
         estadoFuturo = B;
@@ -139,8 +146,30 @@ void loop() {
             delay(20); // Espera 20 ms para evitar rebotes en el botón
         }
     }
-    
+
+    if (angle >= 0 && angle <= 60) {
+        dutycycleRS = map(angle, 0, 60, 256, 0);
+    }
+
+    if (angle >= 61 && angle <= 90) {
+        dutycycleGS = map(angle, 61, 90, 0, 2000);
+    }
+
+    if (angle >= 91 && angle <= 120) {
+        dutycycleGS = map(angle, 91, 120, 2000, 0);
+    }
+
+    if (angle >= 121 && angle <= 180) {
+        dutycycleBS = map(angle, 121, 180, 0, 2000);
+    }
+
+
+    ledcWrite(ledRChannel, dutycycleRS);
+    ledcWrite(ledGChannel, dutycycleGS);
+    ledcWrite(ledBChannel, dutycycleBS);
+
     myservo.write(angle);  // Escribe el ángulo en el servo para que se mueva a la posición correspondiente
+    
     break;
 
     case R:
@@ -158,11 +187,11 @@ void loop() {
 
     case G:
 
-    if (dutycycleG == 255) {
+    if (dutycycleG == 2000) {
         dutycycleG = 0;
     }
     if (digitalRead(pinButton4) == LOW) {
-        dutycycleG++;
+        dutycycleG = dutycycleG + 10;
         delay(10);
     }
 
@@ -171,11 +200,11 @@ void loop() {
 
     case B:
 
-    if (dutycycleB == 255) {
+    if (dutycycleB == 2000) {
         dutycycleB = 0;
     }
     if (digitalRead(pinButton4) == LOW) {
-        dutycycleB++;
+        dutycycleB = dutycycleB + 10;
         delay(10);
     }
 
